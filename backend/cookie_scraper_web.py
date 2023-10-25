@@ -1,9 +1,12 @@
+import io
 import os
+from flask import make_response, send_file
 import prettytable as pt
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 import pandas as pd
 import datetime as dt
+from dashscope_text import call_with_messages_short
 
 def timestamp_to_timestr(timestamp):
     # return dt.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S.%f")
@@ -25,7 +28,17 @@ options.binary_location = r"C:\Users\zw198\AppData\Local\BraveSoftware\Brave-Bro
 options.add_argument("--log-level=3")
 options.headless = True
 driver = webdriver.Chrome(options=options, service=s)
+import re
 
+def split_urls(url_string):
+    # 使用正则表达式匹配逗号或分号作为分隔符
+    delimiter_pattern = r'[;,，]'
+    url_list = re.split(delimiter_pattern, url_string)
+    
+    # 移除每个URL周围可能存在的空格
+    url_list = [url.strip() for url in url_list]
+    
+    return url_list
 
 def getAllurls(path):
     with open(path, 'r') as f:
@@ -49,18 +62,23 @@ def getAllParams(driver, urls):
     c = 0
     for cookie in cookies:
         params = {'url': urls[c], 'name': [], 'value': [], 'domain': [],
-                  'expires': [], 'httpOnly': [], 'secure': [], 'sameSite': []}
+                  'expires': [], 'httpOnly': [], 'secure': [], 'sameSite': [], 'explain': []}
         for i in cookie:
             params['name'].append(i['name'])
             params['value'].append(i['value'])
             params['domain'].append(i['domain'])
+            expires = ''
+            if 'expiry' in i:
+                expires = timestamp_to_timestr(i['expiry'])
+            
             # params['path'].append(i['path'])
-            params['expires'].append(
-                timestamp_to_timestr(i['expiry'])) if 'expiry' in i else params['expires'].append(None)
+            params['expires'].append(expires)
             params['httpOnly'].append(i['httpOnly'])
             params['secure'].append(i['secure'])
             params['sameSite'].append(
                 i['sameSite']) if 'sameSite' in i else params['sameSite'].append('')
+            # params['explain'].append(call_with_messages_short(f"请猜测一下下面的cookie中{i['name']}的含义，回答要简洁，在20个字以内: {i['domain']} {i['name']} {i['value']} {expires}"))
+            params['explain'].append("")
         paramList.append(params)
         c += 1
 
@@ -74,13 +92,13 @@ def printCookieTable(paramList, urls):
         params = paramList[i]
         table = pt.PrettyTable()
         table.title = 'Cookies for: ' + urls[i]
-        table.field_names = ['Name', 'Value', 'Domain',
-                             'Path', 'Expires', 'HttpOnly', 'Secure', 'SameSite']
+        table.field_names = ['名称', '值', '域名',
+                             'Path', 'Expires', 'HttpOnly', 'Secure', 'SameSite', '含义']
         table.align = 'l'
         table.max_width = 40
         for i in range(len(params['name'])):
             table.add_row([params['name'][i], params['value'][i], params['domain'][i], params['path'][i],
-                          params['expires'][i], params['httpOnly'][i], params['secure'][i], params['sameSite'][i]])
+                          params['expires'][i], params['httpOnly'][i], params['secure'][i], params['sameSite'][i], params['explain'][i]])
 
         with open(pathOutput, 'a') as f:
             f.write(table.get_string())
@@ -99,6 +117,36 @@ def SaveToExcel(paramList, urls):
         df_main = pd.concat([df_main, df], ignore_index=True)
     df_main.to_excel(pathExcel, index=False)
 
+
+def scrape(urlsStr):
+    # urls = getAllurls(PATH_TO_URLS)
+    urls = split_urls(urlsStr)
+    paramList = getAllParams(driver, urls)
+    # printCookieTable(params, urls)
+    # SaveToExcel(params, urls)
+    out = io.BytesIO()
+    df_main = pd.DataFrame()
+    for i in range(len(paramList)):
+        params = paramList[i]
+        df = pd.DataFrame(params)
+        df_main = pd.concat([df_main, df], ignore_index=True)
+    writer = pd.ExcelWriter(out, engine='xlsxwriter')
+    df_main.to_excel(excel_writer=writer, sheet_name='Sheet1', index=False)
+    writer.close()
+
+    out.seek(0)
+
+    file_name = 'xxx.xlsx'
+    response = make_response(out.getvalue())
+    # response = send_file(out, as_attachment=True, download_name=file_name)
+# 设置响应的内容类型
+    response.headers["Content-Type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    
+    # 设置文件名并进行UTF-8编码
+    file_name = 'xxx.xlsx'
+    encoded_filename = file_name.encode('utf-8')
+    response.headers['Content-Disposition'] = 'attachment; filename="{}"; filename*=UTF-8''{}'.format(encoded_filename, encoded_filename)
+    return response
 
 if __name__ == '__main__':
     urls = getAllurls(PATH_TO_URLS)

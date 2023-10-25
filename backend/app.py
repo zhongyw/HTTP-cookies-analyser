@@ -1,6 +1,7 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
- 
+from cookie_scraper_web import scrape
+
 DEBUG = True
  
 app = Flask(__name__)
@@ -11,7 +12,9 @@ CORS(app, resources={r'/*': {'origins': '*'}})
  
 @app.route('/api/ping', methods=['GET'])
 def ping_pong():
-    return jsonify('pong!')
+    url_string = request.args.get('urls')
+    return scrape(url_string)
+    # return jsonify('pong!')
  
  
 @app.route('/')
