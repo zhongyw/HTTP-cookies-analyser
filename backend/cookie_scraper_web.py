@@ -7,6 +7,22 @@ from selenium.webdriver.chrome.service import Service
 import pandas as pd
 import datetime as dt
 from dashscope_text import call_with_messages_short
+from datetime import datetime
+
+def days_difference(timestamp):
+    # 将时间戳转换为日期时间对象
+    timestamp_date = datetime.fromtimestamp(timestamp)
+
+    # 获取当前日期时间
+    current_date = datetime.now()
+
+    # 计算日期差值
+    difference = timestamp_date - current_date
+
+    # 提取天数部分
+    days_diff = difference.days
+
+    return days_diff
 
 def timestamp_to_timestr(timestamp):
     # return dt.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S.%f")
@@ -62,17 +78,20 @@ def getAllParams(driver, urls):
     c = 0
     for cookie in cookies:
         params = {'url': urls[c], 'name': [], 'value': [], 'domain': [],
-                  'expires': [], 'httpOnly': [], 'secure': [], 'sameSite': [], 'explain': []}
+                  'expires': [], 'expiresLeft': [], 'httpOnly': [], 'secure': [], 'sameSite': [], 'explain': []}
         for i in cookie:
             params['name'].append(i['name'])
             params['value'].append(i['value'])
             params['domain'].append(i['domain'])
             expires = ''
+            day_diff = 0
             if 'expiry' in i:
                 expires = timestamp_to_timestr(i['expiry'])
+                day_diff = days_difference(i['expiry'])
             
             # params['path'].append(i['path'])
             params['expires'].append(expires)
+            params['expiresLeft'].append(f"{day_diff}天")
             params['httpOnly'].append(i['httpOnly'])
             params['secure'].append(i['secure'])
             params['sameSite'].append(
@@ -93,7 +112,7 @@ def printCookieTable(paramList, urls):
         table = pt.PrettyTable()
         table.title = 'Cookies for: ' + urls[i]
         table.field_names = ['名称', '值', '域名',
-                             'Path', 'Expires', 'HttpOnly', 'Secure', 'SameSite', '含义']
+                             'Path', 'Expires', '剩余过期天数', 'HttpOnly', 'Secure', 'SameSite', '含义']
         table.align = 'l'
         table.max_width = 40
         for i in range(len(params['name'])):

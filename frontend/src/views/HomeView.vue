@@ -53,7 +53,7 @@ const onSubmit = function(e){
       <textarea v-model="urls" rows="10" style="width:800px" placeholder="请输入网址，以逗号分隔，如：https://www.baidu.com,https://www.163.com"/>
     </div>
     <div v-show="!urls" style="color:red">请输入网址</div>
-    <div v-show="isLoading">加载中。。。</div>
+    <div v-show="isLoading">分析中。。。</div>
     <div>
       <button :disabled="isLoading" @click="onSubmit">提交</button>
     </div>
