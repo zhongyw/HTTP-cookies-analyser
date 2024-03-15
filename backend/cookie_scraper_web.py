@@ -8,6 +8,7 @@ import pandas as pd
 import datetime as dt
 from dashscope_text import call_with_messages_short
 from datetime import datetime
+from webdriver_manager.chrome import ChromeDriverManager
 
 def days_difference(timestamp):
     # 将时间戳转换为日期时间对象
@@ -32,18 +33,21 @@ pathOutput = "output.txt"
 pathExcel = "cookie-db-custom.xlsx"
 PATH_TO_URLS = "URLS-custom.txt"
 
-DRIVER_PATH = "chromedriver_win32/chromedriver-new.exe"
-s = Service(DRIVER_PATH)
+# DRIVER_PATH = "chromedriver_win32/chromedriver-new.exe"
+# s = Service(DRIVER_PATH)
 options = webdriver.ChromeOptions()
 # options.binary_location = r"C:/Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
 
-options.binary_location = r"C:\Users\zw198\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe"
+#options.binary_location = r"C:\Users\zw198\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe"
+options.binary_location = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+
 # options.add_argument(
 #     "--user-data-dir=C:\\Users\\dhyey\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data\\Default")
 # options.add_argument("--profile-directory=Default")
 options.add_argument("--log-level=3")
 options.headless = True
-driver = webdriver.Chrome(options=options, service=s)
+# driver = webdriver.Chrome(options=options, service=s)
+driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 import re
 
 def split_urls(url_string):
@@ -89,6 +93,7 @@ def getAllParams(driver, urls):
                 expires = timestamp_to_timestr(i['expiry'])
                 day_diff = days_difference(i['expiry'])
             
+            explainAI = call_with_messages_short(f"请猜测一下下面的cookie中{i['name']}的含义，回答要简洁，在20个字以内: {i['domain']} {i['name']} {i['value']} {expires}")
             # params['path'].append(i['path'])
             params['expires'].append(expires)
             params['expiresLeft'].append(f"{day_diff}天")
@@ -96,8 +101,8 @@ def getAllParams(driver, urls):
             params['secure'].append(i['secure'])
             params['sameSite'].append(
                 i['sameSite']) if 'sameSite' in i else params['sameSite'].append('')
-            # params['explain'].append(call_with_messages_short(f"请猜测一下下面的cookie中{i['name']}的含义，回答要简洁，在20个字以内: {i['domain']} {i['name']} {i['value']} {expires}"))
-            params['explain'].append("")
+            params['explain'].append(explainAI)
+            #params['explain'].append("")
         paramList.append(params)
         c += 1
 
